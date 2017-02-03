@@ -6,6 +6,7 @@
 #   You may not remove any imports.
 #   You may not import or otherwise source any of your own files
 
+import numpy as np
 # import os for time functions
 import os
 from search import * #for search engines
@@ -34,14 +35,20 @@ def heur_manhattan_distance(state):
     #You should implement this heuristic function exactly, even if it is tempting to improve it.
     #Your function should return a numeric value; this is the estimate of the distance to the goal.
 
-    manhattan_dist = -1 
+    manhattan_dist = 0 
 
     for pos, restriction in state.boxes.items():
+        curr_manhattan = np.inf 
         for storage_pos in state.storage:
-            if storage_pos not in state.restrictions[restriction]:
-                curr_dist =  np.sum(np.absolute(np.subtract(pos, storage_pos)))
-                if curr_dist <= manhattan_dist:
-                    manhattan_dist = curr_dist 
+            curr_dist = np.inf 
+            if (state.restrictions is not None) and (storage_pos in state.restrictions[restriction]):
+                curr_dist = np.sum(np.absolute(np.subtract(pos, storage_pos)))
+            elif (state.restrictions is None):
+                print(storage_pos) 
+                curr_dist = np.sum(np.absolute(np.subtract(pos, storage_pos))) 
+            if curr_dist < curr_manhattan:
+                curr_manhattan = curr_dist
+        manhattan_dist += curr_manhattan
     return manhattan_dist
 
 def heur_alternate(state):
@@ -79,15 +86,20 @@ def anytime_gbfs(initial_state, heur_fn, timebound = 10):
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False''' 
     goal_state = False
-    frontier = []
-    curr_time = os.times()[0] 
-    while curr_time < timebound:
-        #for pos, restriction in initial_state.boxes 
-        curr_time += os.times()[0]
-    
-
-    
-    return goal_state 
+    iter = 0 
+    se = SearchEngine('depth_first', 'default')
+    se.init_search(initial_state, sokoban_goal_state, heur_fn)
+    while timebound > 0:
+        #se.init_search(initial_state, sokoban_goal_state, heur_fn)
+        if (iter == 0):
+             curr_state = se.search(timebound) 
+             iter += 1
+        else:
+            if curr_state:
+                curr_state = se.search(timebound, curr_state) 
+        timebound -= os.times()[0] - se.search_start_time
+   
+    return curr_state 
 
 def anytime_weighted_astar(initial_state, heur_fn, weight=1., timebound = 10):
 #IMPLEMENT
