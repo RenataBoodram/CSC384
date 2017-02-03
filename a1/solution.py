@@ -33,7 +33,16 @@ def heur_manhattan_distance(state):
     #When calculating distances, assume there are no obstacles on the grid and that several boxes can fit in one storage bin.
     #You should implement this heuristic function exactly, even if it is tempting to improve it.
     #Your function should return a numeric value; this is the estimate of the distance to the goal.
-    return 0
+
+    manhattan_dist = -1 
+
+    for pos, restriction in state.boxes.items():
+        for storage_pos in state.storage:
+            if storage_pos not in state.restrictions[restriction]:
+                curr_dist =  np.sum(np.absolute(np.subtract(pos, storage_pos)))
+                if curr_dist <= manhattan_dist:
+                    manhattan_dist = curr_dist 
+    return manhattan_dist
 
 def heur_alternate(state):
 #IMPLEMENT
@@ -69,7 +78,16 @@ def anytime_gbfs(initial_state, heur_fn, timebound = 10):
     '''Provides an implementation of anytime greedy best-first search, as described in the HW1 handout'''
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False''' 
-    return False
+    goal_state = False
+    frontier = []
+    curr_time = os.times()[0] 
+    while curr_time < timebound:
+        #for pos, restriction in initial_state.boxes 
+        curr_time += os.times()[0]
+    
+
+    
+    return goal_state 
 
 def anytime_weighted_astar(initial_state, heur_fn, weight=1., timebound = 10):
 #IMPLEMENT
