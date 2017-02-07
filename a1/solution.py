@@ -9,6 +9,7 @@
 import numpy as np
 # import os for time functions
 import os
+from scipy.optimize import linear_sum_assignment
 from search import * #for search engines
 from sokoban import SokobanState, Direction, PROBLEMS, sokoban_goal_state #for Sokoban specific classes and problems
 
@@ -38,16 +39,12 @@ def heur_manhattan_distance(state):
     manhattan_dist = 0 
 
     for pos, restriction in state.boxes.items():
-        curr_manhattan = np.inf 
+        curr_manhattan = float("inf") 
         for storage_pos in state.storage:
-            curr_dist = np.inf 
+            curr_dist = float("inf") 
             if (state.restrictions is not None) and (storage_pos in state.restrictions[restriction]):
-                curr_dist = np.sum(np.absolute(np.subtract(pos, storage_pos)))
-            elif (state.restrictions is None):
-                print(storage_pos) 
-                curr_dist = np.sum(np.absolute(np.subtract(pos, storage_pos))) 
-            if curr_dist < curr_manhattan:
-                curr_manhattan = curr_dist
+                if (np.sum(np.absolute(np.subtract(pos, storage_pos))) < curr_manhattan):
+                    curr_manhattan = curr_dist
         manhattan_dist += curr_manhattan
     return manhattan_dist
 
@@ -59,7 +56,17 @@ def heur_alternate(state):
     #heur_manhattan_distance has flaws.   
     #Write a heuristic function that improves upon heur_manhattan_distance to estimate distance between the current state and the goal.
     #Your function should return a numeric value for the estimate of the distance to the goal.
-    return 0
+
+    dict_len = len(state.boxes)
+    cost = np.zero
+    # Calculate Euclidean distance
+    euc_dist = []
+    for pos, restriction in state.boxes.items():
+        for storage_pos in state.storage:
+            euc_dist.append(np.sum(np.square(np.subtract(pos, storage_pos))))
+    linear_sum_assignment(cost) 
+     
+    
 
 def fval_function(sN, weight):
 #IMPLEMENT
@@ -78,35 +85,77 @@ def fval_function(sN, weight):
     #The function must return a numeric f-value.
     #The value will determine your state's position on the Frontier list during a 'custom' search.
     #You must initialize your search engine object as a 'custom' search engine if you supply a custom fval function.
-    return 0
+    return sN.gval + (weight * sN.hval)
 
 def anytime_gbfs(initial_state, heur_fn, timebound = 10):
 #IMPLEMENT
     '''Provides an implementation of anytime greedy best-first search, as described in the HW1 handout'''
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False''' 
+    i = 0 
     goal_state = False
-    iter = 0 
-    se = SearchEngine('depth_first', 'default')
+    best_state = False
+    best_gval = 0
+    prune = float("inf") 
+    se = SearchEngine('best_first')
     se.init_search(initial_state, sokoban_goal_state, heur_fn)
     while timebound > 0:
-        #se.init_search(initial_state, sokoban_goal_state, heur_fn)
-        if (iter == 0):
-             curr_state = se.search(timebound) 
-             iter += 1
+        if (i == 0):
+             goal_state = se.search(timebound) 
+             best_state = goal_state
+             if goal_state is not False: 
+                 best_gval = goal_state.gval
+             i += 1
         else:
-            if curr_state:
-                curr_state = se.search(timebound, curr_state) 
+             # Current path is worse.
+             if (goal_state is not False) and (goal_state.gval >= best_gval):
+                 prune = goal_state.gval
+                 goal_state = se.search(timebound, (prune, float("inf"), float("inf")))
+             elif (goal_state is not False) and (goal_state.gval < best_gval):
+                 best_state = goal_state
+                 best_gval = goal_state.gval
+                 goal_state = se.search(timebound, (prune, float("inf"), float("inf")))
         timebound -= os.times()[0] - se.search_start_time
-   
-    return curr_state 
+
+    return best_state 
 
 def anytime_weighted_astar(initial_state, heur_fn, weight=1., timebound = 10):
 #IMPLEMENT
     '''Provides an implementation of anytime weighted a-star, as described in the HW1 handout'''
     '''INPUT: a sokoban state that represents the start state and a timebound (number of seconds)'''
     '''OUTPUT: A goal state (if a goal is found), else False''' 
-    return False
+    i = 0
+    best_state = False # The goal state to return
+    goal_state = False # Current goal state
+    prune = float("inf") # Value to prune on
+    best_path = 0 
+    se = SearchEngine('custom')
+    wrapped_fval_fn = (lambda sN: fval_function(sN, weight))
+    se.init_search(initial_state, sokoban_goal_state, heur_fn, wrapped_fval_fn)
+
+    while timebound > 0:
+        if (i == 0):
+            goal_state = se.search(timebound)
+            best_state = goal_state
+            if goal_state is not False:
+                curr_hval = heur_fn(goal_state)
+                best_path = goal_state.gval + curr_hval
+            i += 1
+        else:
+            if (goal_state is not False):
+                curr_hval = heur_fn(goal_state) 
+                curr_val = goal_state.gval + curr_hval
+                # If the path became worse, change the prune value
+                if curr_val >= best_path:
+                    prune = curr_val
+                # A better path was found
+                elif curr_val < best_path:
+                    # Change the choice of best goal state 
+                    best_state = goal_state
+                    best_path = curr_val
+                goal_state = se.search(timebound, (float("inf"), float("inf"), curr_val))
+        timebound -= os.times()[0] - se.search_start_time
+    return best_state 
 
 if __name__ == "__main__":
   #TEST CODE
