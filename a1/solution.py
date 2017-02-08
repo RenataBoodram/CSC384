@@ -10,6 +10,7 @@ import numpy as np
 # import os for time functions
 import os
 from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import chebyshev, cityblock, euclidean, hamming
 from search import * #for search engines
 from sokoban import SokobanState, Direction, PROBLEMS, sokoban_goal_state #for Sokoban specific classes and problems
 
@@ -42,11 +43,71 @@ def heur_manhattan_distance(state):
         curr_manhattan = float("inf") 
         for storage_pos in state.storage:
             curr_dist = float("inf") 
-            if (state.restrictions is not None) and (storage_pos in state.restrictions[restriction]):
-                if (np.sum(np.absolute(np.subtract(pos, storage_pos))) < curr_manhattan):
+            if (state.restrictions is None) or (storage_pos in state.restrictions[restriction]):
+                #if (np.sum(np.absolute(np.subtract(pos, storage_pos))) < curr_manhattan):
+                curr_dist = cityblock(pos, storage_pos)
+                if (curr_dist < curr_manhattan):
                     curr_manhattan = curr_dist
         manhattan_dist += curr_manhattan
     return manhattan_dist
+
+def calc_heur_alternate_dist(state, box, storage):
+    x = box[0]
+    y = box[1]
+    a = storage[0]
+    b = storage[1]
+    aplus = (a + 1, b)
+    aminus = (a - 1, b)
+    bplus = (a, b + 1)
+    bminus = (a, b - 1)
+    xplus = (x + 1, y)
+    xminus = (x - 1, y)
+    yplus = (x, y + 1)
+    yminus = (x, y - 1)
+    obst = state.obstacles
+    dist = -1
+    invalid_dist = state.width + state.height + 1
+
+    # If the box is blocked on the left or right by anything (walls, obstacles,
+    # or boxes)
+
+    if box == storage:
+        return 0
+
+    # Check if storage is blocked on all sides (happens when boxes are pushed)
+    if (aplus in obst) and (aminus in obst) and (bplus in obst) and (bminus in obst):
+        return invalid_dist
+
+    # Top left
+    if (storage == (0,0)) and (aplus in obst) and (bplus in obst):
+        return invalid_dist
+
+    # Top right
+    if (aplus[0] == state.width) and (b == 0) and (aminus in obst) and (bplus in obst):
+        return invalid_dist
+
+    # Bottom left
+    if (a == 0) and (bplus[1] == state.height) and (aplus in obst) and (bminus in obst):
+        return invalid_dist
+   
+    # Bottom right 
+    if (aplus[0] == state.width) and (bplus[1] == state.height) and (aminus in obst) and (bminus in obst):
+        return invalid_dist
+        
+
+    if (x == 0) or (x == state.width - 1) or (xplus in obst) or (xminus in obst):
+        # Check if top or bottom is blocked by obstacles
+        if (y == 0) or (y == state.height - 1) or (yplus in obst) or (yminus in obst):
+            return invalid_dist
+
+    # Check if top and bottom is blocked by obstacles or boxes
+    elif (y == 0) or (y == state.height - 1) or (yplus in obst) or (yminus in obst):
+        # Check if left and right are blocked by obstacles
+        if (x == 0) or (x == state.width - 1) or (xplus in obst) or (xminus in obst):
+            return invalid_dist
+
+    return abs(box[0] - storage[0]) + abs(box[1] - storage[1]) 
+ 
 
 def heur_alternate(state):
 #IMPLEMENT
@@ -57,16 +118,38 @@ def heur_alternate(state):
     #Write a heuristic function that improves upon heur_manhattan_distance to estimate distance between the current state and the goal.
     #Your function should return a numeric value for the estimate of the distance to the goal.
 
-    dict_len = len(state.boxes)
-    cost = np.zero
-    # Calculate Euclidean distance
-    euc_dist = []
+    dict_len = len(state.storage)
+    cost = np.zeros(shape=(1,dict_len))
+    # Make a copy of the storage spaces
+    curr_storage = state.storage or [] 
+    # Calculate distance
+    robot_dist = np.inf 
     for pos, restriction in state.boxes.items():
+        man_dist = []
+        curr_robot_dist = abs(state.robot[0] - pos[0]) + abs(state.robot[1] - pos[1])
+        #curr_robot_dist = cityblock(state.robot, pos)
+        if curr_robot_dist < robot_dist:
+            robot_dist = curr_robot_dist
+
         for storage_pos in state.storage:
-            euc_dist.append(np.sum(np.square(np.subtract(pos, storage_pos))))
-    linear_sum_assignment(cost) 
-     
-    
+            if (state.restrictions is None) or (storage_pos in state.restrictions[restriction]):
+                dist = calc_heur_alternate_dist(state, pos, storage_pos) 
+                #print("dist", dist)
+                man_dist.append(dist)
+            else:
+                man_dist.append(state.width + state.height + 1)    
+        
+        cost = np.append(cost, [man_dist], axis=0)
+
+    # Delete the first row of zeros
+    cost = np.delete(cost, (0), axis=0)
+    #print(cost)
+    row_ind, col_ind = linear_sum_assignment(cost) 
+    result = cost[row_ind, col_ind].sum()
+    result += robot_dist
+
+    # Include wall positions into the obstacles
+    return result
 
 def fval_function(sN, weight):
 #IMPLEMENT
