@@ -81,9 +81,91 @@ def prop_FC(csp, newVar=None):
        only one uninstantiated variable. Remember to keep 
        track of all pruned variable,value pairs and return '''
 #IMPLEMENT
+# returns (bool, list)
+# bool == False iff dead-end is found
+# list == (Variable, value) tuples that have been pruned by propagator
+    pruned_vals = []
+    if not newVar:
+        for c in csp.get_all_cons():
+            if c.get_n_unasgn() == 1:
+                unassigned = c.get_unasgn_vars()
+                dead_end, pruned = FCCheck(c, unassigned[0])
+                pruned_vals += pruned
+
+                # If there is a Domain Wipe Out, return it
+                if dead_end is False:
+                    return dead_end, pruned_vals
+    elif newVar:
+        for c in csp.get_cons_with_var(newVar):
+            if c.get_n_unasgn() == 1:
+                unassigned = c.get_unasgn_vars()
+                dead_end, pruned = FCCheck(c, unassigned[0])
+                pruned_vals += pruned
+                if dead_end is False:
+                    return dead_end, pruned_vals
+
+    return True, pruned_vals
+
+def FCCheck(c, x):
+    '''Do forward checking on a single constraint with unassigned variable x.'''
+    pruned_vals = []
+
+    for domain_member in x.cur_domain():
+        constraint_vars = c.get_scope()
+        val_assigns = []
+        # Check if making x = constraint_var together with previous
+        # assignments to variables in scope C falsify C
+        for var in constraint_vars:
+            if var == x:
+                val_assigns.append(var)
+            else:
+                assigned_val = var.get_assigned_value()
+                val_assigns.append(assigned_val)
+        if c.check(val_assigns) is False:
+            pruned_vals.append((x, domain_member))
+            x.prune_value(domain_member)
+            # Constraint was falsified
+            if x.cur_domain() == []:
+                return False, pruned_vals
+    return True, pruned_vals
+
 
 def prop_GAC(csp, newVar=None):
     '''Do GAC propagation. If newVar is None we do initial GAC enforce 
        processing all constraints. Otherwise we do GAC enforce with
        constraints containing newVar on GAC Queue'''
 #IMPLEMENT
+    queue = []
+    pruned_vals = []
+    if not newVar:
+        iterlist = csp.get_all_cons()
+    else:
+        iterlist = csp.get_cons_with_var(newVar)
+    for c in iterlist:
+        queue = [c] + queue
+        dead_end, prune = GAC_Enforce(queue, csp)
+        pruned_vals += prune
+        if dead_end is False:
+            return dead_end, pruned_vals
+        else:
+            return True, pruned_vals
+    return True, pruned_vals
+
+def GAC_Enforce(GACQueue, csp):
+    '''GAC-Queue contains all constraints one of whose variables has had its 
+       domain reduced.'''
+    pruned_vals = []
+    while GACQueue != []:
+        c = queue.pop()
+        for constraint in c.get_scope():
+            for member in constraint.cur_domain():
+                if (c.has_support(constraint, member) is False):
+                    pruned_vals.append((constraint, member))
+                    constraint.prune_value(member)
+                    if constraint.cur_domain() != []:
+                        for constr in csp.get_cons_with_var(constraint):
+                            if constr not in GACQueue:
+                                pruned_vals = [constr] + pruned_vals
+                    else:
+                        return False, pruned_vals
+    return True, pruned_vals
