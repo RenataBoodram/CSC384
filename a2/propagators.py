@@ -86,23 +86,18 @@ def prop_FC(csp, newVar=None):
 # list == (Variable, value) tuples that have been pruned by propagator
     pruned_vals = []
     if not newVar:
-        for c in csp.get_all_cons():
-            if c.get_n_unasgn() == 1:
-                unassigned = c.get_unasgn_vars()
-                dead_end, pruned = FCCheck(c, unassigned[0])
-                pruned_vals += pruned
+        iterlist = csp.get_all_cons()
+    else:
+        iterlist = csp.get_cons_with_var(newVar)
+    for c in iterlist:
+        if c.get_n_unasgn() == 1:
+            unassigned = c.get_unasgn_vars()
+            dead_end, pruned = FCCheck(c, unassigned[0])
+            pruned_vals += pruned
 
-                # If there is a Domain Wipe Out, return it
-                if dead_end is False:
-                    return dead_end, pruned_vals
-    elif newVar:
-        for c in csp.get_cons_with_var(newVar):
-            if c.get_n_unasgn() == 1:
-                unassigned = c.get_unasgn_vars()
-                dead_end, pruned = FCCheck(c, unassigned[0])
-                pruned_vals += pruned
-                if dead_end is False:
-                    return dead_end, pruned_vals
+            # If there is a Domain Wipe Out, return it
+            if dead_end is False:
+                return dead_end, pruned_vals
 
     return True, pruned_vals
 
@@ -124,9 +119,9 @@ def FCCheck(c, x):
         if c.check(val_assigns) is False:
             pruned_vals.append((x, domain_member))
             x.prune_value(domain_member)
-            # Constraint was falsified
-            if x.cur_domain() == []:
-                return False, pruned_vals
+        # Constraint was falsified
+        if x.cur_domain() == []:
+            return False, pruned_vals
     return True, pruned_vals
 
 
@@ -143,12 +138,10 @@ def prop_GAC(csp, newVar=None):
         iterlist = csp.get_cons_with_var(newVar)
     for c in iterlist:
         queue = [c] + queue
-        dead_end, prune = GAC_Enforce(queue, csp)
-        pruned_vals += prune
-        if dead_end is False:
-            return dead_end, pruned_vals
-        else:
-            return True, pruned_vals
+    dead_end, prune = GAC_Enforce(queue, csp)
+    pruned_vals += prune
+    if dead_end is False:
+        return dead_end, pruned_vals
     return True, pruned_vals
 
 def GAC_Enforce(GACQueue, csp):
