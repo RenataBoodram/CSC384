@@ -81,9 +81,6 @@ def prop_FC(csp, newVar=None):
        only one uninstantiated variable. Remember to keep 
        track of all pruned variable,value pairs and return '''
 #IMPLEMENT
-# returns (bool, list)
-# bool == False iff dead-end is found
-# list == (Variable, value) tuples that have been pruned by propagator
     pruned_vals = []
     if not newVar:
         iterlist = csp.get_all_cons()
@@ -104,7 +101,6 @@ def prop_FC(csp, newVar=None):
 def FCCheck(c, x):
     '''Do forward checking on a single constraint with unassigned variable x.'''
     pruned_vals = []
-
     for domain_member in x.cur_domain():
         constraint_vars = c.get_scope()
         val_assigns = []
@@ -112,7 +108,7 @@ def FCCheck(c, x):
         # assignments to variables in scope C falsify C
         for var in constraint_vars:
             if var == x:
-                val_assigns.append(var)
+                val_assigns.append(domain_member)
             else:
                 assigned_val = var.get_assigned_value()
                 val_assigns.append(assigned_val)
