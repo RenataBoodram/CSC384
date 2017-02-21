@@ -139,7 +139,7 @@ def prop_GAC(csp, newVar=None):
     for c in iterlist:
         queue = [c] + queue
     dead_end, prune = GAC_Enforce(queue, csp)
-    pruned_vals += prune
+    pruned_vals = pruned_vals + prune
     if dead_end is False:
         return dead_end, pruned_vals
     return True, pruned_vals
@@ -149,8 +149,9 @@ def GAC_Enforce(GACQueue, csp):
        domain reduced.'''
     pruned_vals = []
     while GACQueue != []:
-        c = queue.pop()
-        for constraint in c.get_scope():
+        c = GACQueue.pop()
+        all_constr = c.get_scope()
+        for constraint in all_constr:
             for member in constraint.cur_domain():
                 if (c.has_support(constraint, member) is False):
                     pruned_vals.append((constraint, member))
@@ -158,7 +159,7 @@ def GAC_Enforce(GACQueue, csp):
                     if constraint.cur_domain() != []:
                         for constr in csp.get_cons_with_var(constraint):
                             if constr not in GACQueue:
-                                pruned_vals = [constr] + pruned_vals
+                                GACQueue = [constr] + GACQueue
                     else:
                         return False, pruned_vals
     return True, pruned_vals

@@ -66,6 +66,71 @@ def tenner_csp_model_1(initial_tenner_board):
     '''
     
 #IMPLEMENT
+    # Variable list creation
+    variable_array = []
+    row_ind = 0 
+    for row in initial_tenner_board[0]:
+        row_var_list = []
+        for col in range(0, 10):
+            domain = []
+            if row[col] == -1:
+                domain = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            else:
+                domain = [row[col]]
+            name = "-V" + str(row_ind + 1) + "," + str(col + 1) + " "
+            # Create new variable object
+            var = Variable(name, domain)
+            row_var_list.append(var)
+        # Add the variables for this row to the variable_array 
+        variable_array.append(row_var_list)
+        row_ind += 1
+    print("ROW_IND: ", row_ind)
+    row_constr = create_binary_not_equal_constr(variable_array, row_ind - 1, 10, "row")
+    #col_csontr = create_binary_not_equal_constr(variable_array, 10, row_ind - 1, "column")
+    #diag_constr = create_binary_not_equal_constr(variable_array, 
+
+
+    csp = CSP(" TENNER-M1")
+    for row_var in variable_array:
+        for var in row_var:
+            csp.add_var(var)
+
+    for c in row_constr:
+        csp.add_constraint(c)
+
+
+    return csp, variable_array
+
+'''Create a list of Constraints'''
+def create_binary_not_equal_constr(var_arr, first_range, second_range, constraint_type):
+    constraints = []
+    for first in range(0,first_range):
+        if constraint_type == "row":
+            lst = var_arr[first]
+        elif constraint_type == "column":
+            lst = []
+            for row in range(0, second_range):
+                lst.append(var_arr[row][first])
+        
+        for second in range(0, second_range):
+            for next_var in range(second + 1, second_range):
+                first_var = lst[second]
+                sec_var = lst[next_var]
+                name = first_var.name + sec_var.name
+                # Create a new constraint
+                constr = Constraint(name, [first_var, sec_var]) 
+                satisfied = []
+                for member in lst[second].cur_domain():
+                    for next_mem in lst[next_var].cur_domain():
+                        if member != next_mem:
+                            satisfied.append((member, next_mem))
+                constr.add_satisfying_tuples(satisfied)
+                constraints.append(constr) 
+               
+    return constraints    
+    
+        
+            
 
 ##############################
 
