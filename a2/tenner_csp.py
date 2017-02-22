@@ -77,17 +77,56 @@ def tenner_csp_model_1(initial_tenner_board):
                 domain = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             else:
                 domain = [row[col]]
-            name = "-V" + str(row_ind + 1) + "," + str(col + 1) + " "
+            name = "V" + str(row_ind + 1) + "," + str(col + 1)
             # Create new variable object
             var = Variable(name, domain)
             row_var_list.append(var)
         # Add the variables for this row to the variable_array 
         variable_array.append(row_var_list)
         row_ind += 1
-    print("ROW_IND: ", row_ind)
-    row_constr = create_binary_not_equal_constr(variable_array, row_ind - 1, 10, "row")
-    #col_csontr = create_binary_not_equal_constr(variable_array, 10, row_ind - 1, "column")
-    #diag_constr = create_binary_not_equal_constr(variable_array, 
+
+    # Create binary constraints of not-equal
+    constraints = []
+    for row in range(0, row_ind):
+        lst = variable_array[row]
+        for col in range (0, 10):
+            # Make sure all values in the same row are not equal
+            for next_col in range(col + 1, 10):
+                first_var = lst[col]
+                sec_var = lst[next_col]
+                name = first_var.name + sec_var.name
+                # Create new constraint
+                constr = create_constr(name, [first_var, sec_var])
+                constraints.append(constr)
+
+            # Check adjacent cells below 
+            var_pairs = []
+            if row != row_ind - 1:
+                name = ""
+                first_var = lst[col]
+                # Check diagonal left
+                if col != 0:  
+                    sec_var = variable_array[row + 1][col - 1]
+                    name = first_var.name + sec_var.name
+                    var_pairs.append([name, first_var, sec_var])
+                # Check diagonal right
+                if col != 9:
+                    sec_var = variable_array[row + 1][col + 1]
+                    name = first_var.name + sec_var.name
+                    var_pairs.append([name, first_var, sec_var])
+
+                # Check directly below
+                sec_var = variable_array[row + 1][col]
+                name = first_var.name + sec_var.name
+                var_pairs.append([name, first_var, sec_var])
+
+                for var_pair in var_pairs:
+                    constr = create_constr(var_pair[0], [var_pair[1], var_pair[2]])
+                    constraints.append(constr)
+
+    for col in range(0, 10):
+        constr = create_nary_constr(variable_array, initial_tenner_board[1], row_ind, col)
+        constraints.append(constr)
 
 
     csp = CSP(" TENNER-M1")
@@ -95,39 +134,59 @@ def tenner_csp_model_1(initial_tenner_board):
         for var in row_var:
             csp.add_var(var)
 
-    for c in row_constr:
+    for c in constraints: 
         csp.add_constraint(c)
 
 
     return csp, variable_array
 
-'''Create a list of Constraints'''
-def create_binary_not_equal_constr(var_arr, first_range, second_range, constraint_type):
-    constraints = []
-    for first in range(0,first_range):
-        if constraint_type == "row":
-            lst = var_arr[first]
-        elif constraint_type == "column":
-            lst = []
-            for row in range(0, second_range):
-                lst.append(var_arr[row][first])
-        
-        for second in range(0, second_range):
-            for next_var in range(second + 1, second_range):
-                first_var = lst[second]
-                sec_var = lst[next_var]
-                name = first_var.name + sec_var.name
-                # Create a new constraint
-                constr = Constraint(name, [first_var, sec_var]) 
-                satisfied = []
-                for member in lst[second].cur_domain():
-                    for next_mem in lst[next_var].cur_domain():
-                        if member != next_mem:
-                            satisfied.append((member, next_mem))
-                constr.add_satisfying_tuples(satisfied)
-                constraints.append(constr) 
+	   
+def create_constr(name, scope):
+    # Create a new constraint
+    constr = Constraint(name, [scope[0], scope[1]]) 
+    satisfied = []
+    # Check for unique elements
+    for i in itertools.product(scope[0].cur_domain(), scope[1].cur_domain()):
+        if i[0] != i[1]:
+            satisfied.append(i)
+
+    constr.add_satisfying_tuples(satisfied)
                
-    return constraints    
+    return constr    
+
+def create_nary_constr(variable_array, sum_constr, row_ind, col):
+    '''Create n-ary column sum constraint, where n is the number of rows.'''
+    entire_col = []
+    entire_var = []
+    satisfied = []
+    name = ""
+    for r in range(0, row_ind):
+        var = variable_array[r][col]
+        name += var.name
+        entire_col.append(var.cur_domain())
+        entire_var.append(var)
+    constr = Constraint(col, entire_var)
+    for i in pproduct(entire_col):
+        if sum(list(i)) == sum_constr[col]:
+            #print("SUM", sum_constr[col])
+            #print(i)
+            satisfied.append(i)
+    constr.add_satisfying_tuples(satisfied)
+
+    return constr
+
+
+def pproduct(*args, repeat=1):
+    '''itertools.product that takes 2D list as input.
+       Original code:
+       https://docs.python.org/3/library/itertools.html#itertools.product
+    ''' 
+    pools = [tuple(p) for pool in args for p in pool] * repeat
+    result = [[]]
+    for pool in pools:
+        result = [x+[y] for x in result for y in pool if y not in x[-1:]]
+    for prod in result:
+        yield tuple(prod)
     
         
             
