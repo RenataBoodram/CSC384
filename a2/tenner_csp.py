@@ -67,26 +67,11 @@ def tenner_csp_model_1(initial_tenner_board):
     
 #IMPLEMENT
     # Variable list creation
-    variable_array = []
-    row_ind = 0 
-    for row in initial_tenner_board[0]:
-        row_var_list = []
-        for col in range(0, 10):
-            domain = []
-            if row[col] == -1:
-                domain = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-            else:
-                domain = [row[col]]
-            name = "V" + str(row_ind + 1) + "," + str(col + 1)
-            # Create new variable object
-            var = Variable(name, domain)
-            row_var_list.append(var)
-        # Add the variables for this row to the variable_array 
-        variable_array.append(row_var_list)
-        row_ind += 1
+    variable_array = create_var_list(initial_tenner_board[0])
 
     # Create binary constraints of not-equal
     constraints = []
+    row_ind = len(initial_tenner_board[0])
     for row in range(0, row_ind):
         lst = variable_array[row]
         for col in range (0, 10):
@@ -129,7 +114,7 @@ def tenner_csp_model_1(initial_tenner_board):
         constraints.append(constr)
 
 
-    csp = CSP(" TENNER-M1")
+    csp = CSP("TENNER-M1")
     for row_var in variable_array:
         for var in row_var:
             csp.add_var(var)
@@ -140,7 +125,33 @@ def tenner_csp_model_1(initial_tenner_board):
 
     return csp, variable_array
 
-	   
+def create_var_list(board):
+    '''Create list of Variables for all spots on the board.'''
+    variable_array = []
+    row_ind = 0
+    prev_domain = -2 
+    for row in board:
+        row_var_list = []
+        for col in range(0, 10):
+            domain = []
+            if row[col] == -1:
+                domain = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                if prev_domain in domain:
+                    domain.remove(prev_domain)
+                prev_domain = -2 
+            else:
+                domain = [row[col]]
+                prev_domain = [row[col]]
+            name = "V" + str(row_ind + 1) + "," + str(col + 1)
+            # Create new variable object
+            var = Variable(name, domain)
+            row_var_list.append(var)
+        # Add the variables for this row to the variable_array
+        variable_array.append(row_var_list)
+        prev_domain = -2
+        row_ind += 1
+    return variable_array
+
 def create_constr(name, scope):
     # Create a new constraint
     constr = Constraint(name, [scope[0], scope[1]]) 
@@ -165,15 +176,28 @@ def create_nary_constr(variable_array, sum_constr, row_ind, col):
         name += var.name
         entire_col.append(var.cur_domain())
         entire_var.append(var)
-    constr = Constraint(col, entire_var)
+    constr = Constraint(name, entire_var)
     for i in pproduct(entire_col):
         if sum(list(i)) == sum_constr[col]:
-            #print("SUM", sum_constr[col])
-            #print(i)
             satisfied.append(i)
     constr.add_satisfying_tuples(satisfied)
 
     return constr
+
+def create_nary_not_eq(variable_array):
+    '''Create n-ary row all-diff constraint, where n is the length of the rows.'''
+    entire_row = []
+    satisfied = []
+    name = ""
+    for var in variable_array:
+        name += var.name
+        entire_row.append(var.cur_domain())
+    constr = Constraint(name, variable_array)
+    for i in pproduct(entire_row):
+        if len(i) == len(set(i)):
+            satisfied.append(i)
+    constr.add_satisfying_tuples(satisfied)
+    return constr 
 
 
 def pproduct(*args, repeat=1):
@@ -235,3 +259,57 @@ def tenner_csp_model_2(initial_tenner_board):
     '''
 
 #IMPLEMENT
+    # Variable list creation
+    variable_array = create_var_list(initial_tenner_board[0])
+
+    # Create binary constraints of not-equal
+    constraints = []
+    row_var_name = ""
+    row_ind = len(initial_tenner_board[0])
+    for row in range(0, row_ind):
+        lst = variable_array[row]
+        for col in range (0, 10):
+            # Check adjacent cells below
+            var_pairs = []
+            if row != row_ind - 1:
+                name = ""
+                first_var = lst[col]
+                # Check diagonal left
+                if col != 0:
+                    sec_var = variable_array[row + 1][col - 1]
+                    name = first_var.name + sec_var.name
+                    var_pairs.append([name, first_var, sec_var])
+                # Check diagonal right
+                if col != 9:
+                    sec_var = variable_array[row + 1][col + 1]
+                    name = first_var.name + sec_var.name
+                    var_pairs.append([name, first_var, sec_var])
+
+                # Check directly below
+                sec_var = variable_array[row + 1][col]
+                name = first_var.name + sec_var.name
+                var_pairs.append([name, first_var, sec_var])
+
+                for var_pair in var_pairs:
+                    constr = create_constr(var_pair[0], [var_pair[1], var_pair[2]])
+                    constraints.append(constr)
+        constr = create_nary_not_eq(lst)
+        constraints.append(constr)
+
+    for col in range(0, 10):
+        constr = create_nary_constr(variable_array, initial_tenner_board[1], row_ind, col)
+        constraints.append(constr)
+
+
+
+    csp = CSP("TENNER-M1")
+    for row_var in variable_array:
+        for var in row_var:
+            csp.add_var(var)
+
+    for c in constraints:
+        csp.add_constraint(c)
+
+
+    return csp, variable_array
+
