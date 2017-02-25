@@ -66,20 +66,33 @@ def tenner_csp_model_1(initial_tenner_board):
     '''
     
 #IMPLEMENT
+    constraints = []
+    row_ind = len(initial_tenner_board[0])
+
     # Variable list creation
     variable_array = create_var_list(initial_tenner_board[0])
 
+    for col in range(0, 10):
+        constr = create_nary_constr(variable_array, initial_tenner_board[1], row_ind, col)
+        constraints.append(constr)
+
     # Create binary constraints of not-equal
-    constraints = []
-    row_ind = len(initial_tenner_board[0])
+    prev_domain = -2
     for row in range(0, row_ind):
         lst = variable_array[row]
         for col in range (0, 10):
             # Make sure all values in the same row are not equal
+            first_var = lst[col]
+            if first_var.cur_domain_size() == 1:
+                prev_domain = first_var.cur_domain()[0]
+            else:
+                prev_domain = -2
+
             for next_col in range(col + 1, 10):
-                first_var = lst[col]
                 sec_var = lst[next_col]
+
                 name = first_var.name + sec_var.name
+
                 # Create new constraint
                 constr = create_constr(name, [first_var, sec_var])
                 constraints.append(constr)
@@ -88,30 +101,34 @@ def tenner_csp_model_1(initial_tenner_board):
             var_pairs = []
             if row != row_ind - 1:
                 name = ""
-                first_var = lst[col]
                 # Check diagonal left
                 if col != 0:  
                     sec_var = variable_array[row + 1][col - 1]
                     name = first_var.name + sec_var.name
+                    if prev_domain != -2 and sec_var.in_cur_domain(prev_domain):
+                        sec_var.prune_value(prev_domain)
+                        
                     var_pairs.append([name, first_var, sec_var])
                 # Check diagonal right
                 if col != 9:
                     sec_var = variable_array[row + 1][col + 1]
                     name = first_var.name + sec_var.name
+                    if prev_domain != -2 and sec_var.in_cur_domain(prev_domain):
+                        sec_var.prune_value(prev_domain)
+
                     var_pairs.append([name, first_var, sec_var])
 
                 # Check directly below
                 sec_var = variable_array[row + 1][col]
                 name = first_var.name + sec_var.name
+                if prev_domain != -2 and sec_var.in_cur_domain(prev_domain):
+                        sec_var.prune_value(prev_domain)
+
                 var_pairs.append([name, first_var, sec_var])
 
                 for var_pair in var_pairs:
                     constr = create_constr(var_pair[0], [var_pair[1], var_pair[2]])
                     constraints.append(constr)
-
-    for col in range(0, 10):
-        constr = create_nary_constr(variable_array, initial_tenner_board[1], row_ind, col)
-        constraints.append(constr)
 
 
     csp = CSP("TENNER-M1")
@@ -155,13 +172,20 @@ def create_var_list(board):
 def create_constr(name, scope):
     # Create a new constraint
     constr = Constraint(name, [scope[0], scope[1]]) 
-    satisfied = []
     # Check for unique elements
+    if scope[0].cur_domain_size() == 1:
+        val = scope[0].cur_domain()[0]
+        if scope[1].in_cur_domain(val):
+            scope[1].prune_value(val)
+
+    if scope[1].cur_domain_size() == 2:
+        val = scope[1].cur_domain()[0]
+        if scope[0].in_cur_domain(val):
+            scope[0].prune_value(val)
+
     for i in itertools.product(scope[0].cur_domain(), scope[1].cur_domain()):
         if i[0] != i[1]:
-            satisfied.append(i)
-
-    constr.add_satisfying_tuples(satisfied)
+            constr.add_satisfying_tuples([i])
                
     return constr    
 
@@ -169,25 +193,33 @@ def create_nary_constr(variable_array, sum_constr, row_ind, col):
     '''Create n-ary column sum constraint, where n is the number of rows.'''
     entire_col = []
     entire_var = []
-    satisfied = []
     name = ""
+    prev_domain = -2
     for r in range(0, row_ind):
         var = variable_array[r][col]
-        name += var.name
+        name = "Col-" + str(col)
+
+        # Prune consecutive values in column 
+        if prev_domain != 2 and var.in_cur_domain(prev_domain):
+            var.prune_value(prev_domain)
+        if var.cur_domain_size() == 1:
+            prev_domain = var.cur_domain()[0]
+        else:
+            prev_domain = -2
+
         entire_col.append(var.cur_domain())
         entire_var.append(var)
     constr = Constraint(name, entire_var)
     for i in pproduct(entire_col):
         if sum(list(i)) == sum_constr[col]:
-            satisfied.append(i)
-    constr.add_satisfying_tuples(satisfied)
+            constr.add_satisfying_tuples([i])
 
     return constr
 
 def create_nary_not_eq(variable_array):
     '''Create n-ary row all-diff constraint, where n is the length of the rows.'''
     entire_row = []
-    satisfied = []
+    #satisfied = []
     name = ""
     for var in variable_array:
         name += var.name
@@ -195,8 +227,9 @@ def create_nary_not_eq(variable_array):
     constr = Constraint(name, variable_array)
     for i in pproduct(entire_row):
         if len(i) == len(set(i)):
-            satisfied.append(i)
-    constr.add_satisfying_tuples(satisfied)
+            constr.add_satisfying_tuples([i])
+    #        satisfied.append(i)
+    #constr.add_satisfying_tuples(satisfied)
     return constr 
 
 
@@ -259,13 +292,19 @@ def tenner_csp_model_2(initial_tenner_board):
     '''
 
 #IMPLEMENT
+    constraints = []
+    row_ind = len(initial_tenner_board[0])
     # Variable list creation
     variable_array = create_var_list(initial_tenner_board[0])
 
+    for col in range(0, 10):
+        constr = create_nary_constr(variable_array, initial_tenner_board[1], row_ind, col)
+        constraints.append(constr)
+
+
     # Create binary constraints of not-equal
-    constraints = []
     row_var_name = ""
-    row_ind = len(initial_tenner_board[0])
+    prev_domain = -2
     for row in range(0, row_ind):
         lst = variable_array[row]
         for col in range (0, 10):
@@ -274,19 +313,32 @@ def tenner_csp_model_2(initial_tenner_board):
             if row != row_ind - 1:
                 name = ""
                 first_var = lst[col]
+                if first_var.cur_domain_size() == 1:
+                    prev_domain = first_var.cur_domain()[0]
+                else:
+                    prev_domain = -2
                 # Check diagonal left
                 if col != 0:
                     sec_var = variable_array[row + 1][col - 1]
+                    if prev_domain != -2 and sec_var.in_cur_domain(prev_domain):
+                        sec_var.prune_value(prev_domain)
+
                     name = first_var.name + sec_var.name
                     var_pairs.append([name, first_var, sec_var])
                 # Check diagonal right
                 if col != 9:
                     sec_var = variable_array[row + 1][col + 1]
+                    if prev_domain != -2 and sec_var.in_cur_domain(prev_domain):
+                        sec_var.prune_value(prev_domain)
+
                     name = first_var.name + sec_var.name
                     var_pairs.append([name, first_var, sec_var])
 
                 # Check directly below
                 sec_var = variable_array[row + 1][col]
+                if prev_domain != -2 and sec_var.in_cur_domain(prev_domain):
+                    sec_var.prune_value(prev_domain)
+
                 name = first_var.name + sec_var.name
                 var_pairs.append([name, first_var, sec_var])
 
@@ -296,13 +348,8 @@ def tenner_csp_model_2(initial_tenner_board):
         constr = create_nary_not_eq(lst)
         constraints.append(constr)
 
-    for col in range(0, 10):
-        constr = create_nary_constr(variable_array, initial_tenner_board[1], row_ind, col)
-        constraints.append(constr)
 
-
-
-    csp = CSP("TENNER-M1")
+    csp = CSP("TENNER-M2")
     for row_var in variable_array:
         for var in row_var:
             csp.add_var(var)
