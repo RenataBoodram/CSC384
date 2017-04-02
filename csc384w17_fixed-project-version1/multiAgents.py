@@ -216,17 +216,106 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 #        util.raiseNotDefined()
         return self.play_pacman(gameState, 1)[1]
 
-    
+class MonteCarloAgent(MultiAgentSearchAgent):
+    """
+        Your monte-carlo agent (question 5)
+        ***UCT = MCTS + UBC1***
+        TODO:
+        1) Complete getAction to return the best action based on UCT.
+        2) Complete runSimulation to simulate moves using UCT.
+        3) Complete final, which updates the value of each of the states visited during a play of the game.
+
+        * If you want to add more functions to further modularize your implementation, feel free to.
+        * Make sure that your dictionaries are implemented in the following way:
+            -> Keys are game states.
+            -> Value are integers. When performing division (i.e. wins/plays) don't forget to convert to float.
+      """
+
+    def __init__(self, evalFn='mctsEvalFunction', depth='-1', timeout='40', numTraining=100, C='2', Q=None):
+        # This is where you set C, the depth, and the evaluation function for the section "Enhancements for MCTS agent".
+        if Q:
+            if Q == 'minimaxClassic':
+                pass
+            elif Q == 'testClassic':
+                pass
+            elif Q == 'smallClassic':
+                pass
+            else: # Q == 'contestClassic'
+                assert( Q == 'contestClassic' )
+                pass
+        # Otherwise, your agent will default to these values.
+        else:
+            self.C = int(C)
+            # If using depth-limited UCT, need to set a heuristic evaluation function.
+            if int(depth) > 0:
+                evalFn = 'scoreEvaluationFunction'
+        self.states = []
+        self.plays = dict()
+        self.wins = dict()
+        self.calculation_time = datetime.timedelta(milliseconds=int(timeout))
+
+        self.numTraining = numTraining
+
+        "*** YOUR CODE HERE ***"
+
+        MultiAgentSearchAgent.__init__(self, evalFn, depth)
+
+    def update(self, state):
+        """
+        You do not need to modify this function. This function is called every time an agent makes a move.
+        """
+        self.states.append(state)
+
+    def getAction(self, gameState):
+        """
+        Returns the best action using UCT. Calls runSimulation to update nodes
+        in its wins and plays dictionary, and returns best successor of gameState.
+        """
+        "*** YOUR CODE HERE ***"
+        games = 0
+        begin = datetime.datetime.utcnow()
+        while datetime.datetime.utcnow() - begin < self.calculation_time:
+            games += 1
+
+        util.raiseNotDefined()
+
+    def run_simulation(self, state):
+        """
+        Simulates moves based on MCTS.
+        1) (Selection) While not at a leaf node, traverse tree using UCB1.
+        2) (Expansion) When reach a leaf node, expand.
+        4) (Simulation) Select random moves until terminal state is reached.
+        3) (Backpropapgation) Update all nodes visited in search tree with appropriate values.
+        * Remember to limit the depth of the search only in the expansion phase!
+        Updates values of appropriate states in search with with evaluation function.
+        """
+        "*** YOUR CODE HERE ***"
+        util.raiseNotDefined()
+
+    def final(self, state):
+        """
+        Called by Pacman game at the terminal state.
+        Updates search tree values of states that were visited during an actual game of pacman.
+        """
+        "*** YOUR CODE HERE ***"
+        util.raiseNotDefined()
+
+def mctsEvalFunction(state):
+    """
+    Evaluates state reached at the end of the expansion phase.
+    """
+    return 1 if state.isWin() else 0
 
 def betterEvaluationFunction(currentGameState):
     """
       Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
       evaluation function (question 5).
 
-      DESCRIPTION: <write something here so we know what you did>
+      DESCRIPTION:  
+          
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+#    util.raiseNotDefined()
 
 # Abbreviation
 better = betterEvaluationFunction
