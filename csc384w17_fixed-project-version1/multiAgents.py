@@ -18,6 +18,16 @@ import random, util
 
 from game import Agent
 
+
+def scoreEvaluationFunction(currentGameState):
+   """
+     This default evaluation function just returns the score of the state.
+     The score is the same one displayed in the Pacman GUI.
+
+     This evaluation function is meant for use with adversarial search agents
+   """
+   return currentGameState.getScore()
+
 class MultiAgentSearchAgent(Agent):
     """
       This class provides some common elements to all of your
@@ -42,7 +52,35 @@ class MinimaxAgent(MultiAgentSearchAgent):
     """
       Your minimax agent (question 2)
     """
+    def play_pacman(self, gameState, depth):
+        agent = 0
+        legActions = gameState.getLegalActions(agent)
+        cost = [0]
+        if gameState.isWin() or len(legActions) == 0 or self.depth < depth:
+            return self.evaluationFunction(gameState), Directions.STOP
+        for action in legActions:
+            successor = gameState.generateSuccessor(agent, action)
+            cost.append((self.play_ghosts(successor, depth, agent + 1),action))
+        return max(cost) 
 
+    def play_ghosts(self, gameState, depth, agent):
+#        print("play ghost", depth, agent)
+        legActions = gameState.getLegalActions(agent)
+        if gameState.isLose() or len(legActions) == 0:
+            return self.evaluationFunction(gameState), Directions.STOP
+        successors = [gameState.generateSuccessor(agent, action) for action in legActions]
+        #cost = []
+        if gameState.getNumAgents() - 1 == agent:
+            cost = []
+            for succ in successors:
+                cost.append(self.play_pacman(succ,depth+1))
+        else:
+           cost = []
+           for succ in successors:
+                cost.append(self.play_ghosts(succ,depth,agent+1))
+        return min(cost)
+
+           
     def getAction(self, gameState):
         """
           Returns the minimax action from the current gameState using self.depth
@@ -61,19 +99,62 @@ class MinimaxAgent(MultiAgentSearchAgent):
             Returns the total number of agents in the game
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+#        util.raiseNotDefined()
+        return self.play_pacman(gameState, 1)[1]
+        
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
       Your minimax agent with alpha-beta pruning (question 3)
     """
 
+    def play_pacman(self, gameState, depth, alpha, beta):
+        curr_val = float("-inf")
+        direction = Directions.STOP
+        agent = 0
+        legActions = gameState.getLegalActions(agent)
+        cost = [0]
+        if gameState.isWin() or len(legActions) == 0 or self.depth < depth:
+            return self.evaluationFunction(gameState), Directions.STOP
+        for action in legActions:
+            successor = gameState.generateSuccessor(agent, action)
+            #cost.append((self.play_ghosts(successor, depth, agent + 1),action))
+            cost = self.play_ghosts(succ, depth, agent+1,alpha, beta)
+            if cost > curr_val:
+                direction = action
+            if curr_val > beta:
+                return curr_val, direction 
+            # Find largest alpha
+            alpha = max(alpha, curr_val)
+       return curr_val, direction            
+
+    def play_ghosts(self, gameState, depth, agent, alpha, beta):
+        legActions = gameState.getLegalActions(agent)
+        curr_val = float("inf")
+        if gameState.isLose() or len(legActions) == 0:
+            return self.evaluationFunction(gameState), Directions.STOP
+        successors = [gameState.generateSuccessor(agent, action) for action in legActions]
+        #cost = []
+        if gameState.getNumAgents() - 1 == agent:
+            cost = []
+            for succ in successors:
+                cost.append(self.play_pacman(succ,depth+1))
+        else:
+           cost = []
+           for succ in successors:
+                cost.append(self.play_ghosts(succ,depth,agent+1))
+        return min(cost)
+
+
     def getAction(self, gameState):
         """
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+#        util.raiseNotDefined()
+        return self.play_pacman(gameState, 1)[1]
+
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
