@@ -166,6 +166,44 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     """
       Your expectimax agent (question 4)
     """
+    def play_pacman(self, gameState, depth):
+        agent = 0
+        legActions = gameState.getLegalActions(agent)
+        cost = [0]
+        if gameState.isWin() or len(legActions) == 0 or self.depth < depth:
+            return self.evaluationFunction(gameState), Directions.STOP
+        for action in legActions:
+            successor = gameState.generateSuccessor(agent, action)
+            cost.append((self.play_ghosts(successor, depth, agent + 1),action))
+        return max(cost)
+
+    def play_ghosts(self, gameState, depth, agent):
+#        print("play ghost", depth, agent)
+        legActions = gameState.getLegalActions(agent)
+        if gameState.isLose() or len(legActions) == 0:
+            return self.evaluationFunction(gameState), Directions.STOP
+        successors = [gameState.generateSuccessor(agent, action) for action in legActions]
+        #cost = []
+        if gameState.getNumAgents() - 1 == agent:
+            cost = []
+            for succ in successors:
+                cost.append(self.play_pacman(succ,depth+1))
+        else:
+           cost = []
+           for succ in successors:
+                cost.append(self.play_ghosts(succ,depth,agent+1))
+
+        # Calculate the average
+        cost_sum = 0
+        for c in cost:
+            if type(c[0]) != tuple:
+                cost_sum += c[0] 
+            else:
+                cost_sum += c[0][0]
+        avg = cost_sum/len(cost)
+       # return min(cost)
+        return avg, Directions.STOP
+
 
     def getAction(self, gameState):
         """
@@ -175,7 +213,10 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+#        util.raiseNotDefined()
+        return self.play_pacman(gameState, 1)[1]
+
+    
 
 def betterEvaluationFunction(currentGameState):
     """
